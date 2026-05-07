@@ -1,0 +1,153 @@
+import type {
+  CanonicalContentBlock,
+  CanonicalMessage,
+  CanonicalModelRequest,
+  CanonicalToolChoice,
+  CanonicalToolSchema,
+  ModelDefinition,
+} from "../../protocol/canonical.js";
+
+export type OpenAIRequestBody = {
+  model: string;
+  messages: OpenAIMessage[];
+  max_tokens: number;
+  tools?: OpenAITool[];
+  tool_choice?: unknown;
+  temperature?: number;
+  stream?: boolean;
+  metadata?: Record<string, unknown>;
+};
+
+type OpenAIMessage = {
+  role: "system" | "user" | "assistant" | "tool";
+  content?: string | unknown[];
+  tool_calls?: unknown[];
+  tool_call_id?: string;
+};
+
+type OpenAITool = {
+  type: "function";
+  function: {
+    name: string;
+    description?: string;
+    parameters: Record<string, unknown>;
+  };
+};
+
+export function buildOpenAIRequest(
+  request: CanonicalModelRequest,
+  model: ModelDefinition,
+): OpenAIRequestBody {
+  const messages = request.messages.flatMap(toOpenAIMessages);
+  if (request.systemPrompt) {
+    messages.unshift({ role: "system", content: request.systemPrompt });
+  }
+
+  return {
+    model: request.model,
+    messages,
+    max_tokens: request.maxOutputTokens ?? model.capabilities.maxOutputTokens,
+    tools: request.tools?.map(toOpenAITool),
+    tool_choice: toOpenAIToolChoice(request.toolChoice),
+    temperature: request.temperature,
+    stream: request.stream,
+    metadata: request.metadata,
+  };
+}
+
+function toOpenAIMessages(message: CanonicalMessage): OpenAIMessage[] {
+  const toolResultMessages = message.content
+    .filter((block) => block.type === "tool_result")
+    .map((block) => ({
+      role: "tool" as const,
+      tool_call_id: block.toolCallId,
+      content: block.content.map((content) => content.text).join("\n"),
+    }));
+
+  const assistantToolCalls = message.content
+    .filter((block) => block.type === "tool_call")
+    .map((block) => ({
+      id: block.id,
+      type: "function",
+      function: {
+        name: block.name,
+        arguments: JSON.stringify(block.input ?? {}),
+      },
+    }));
+
+  const normalContent = message.content.filter(
+    (block) => block.type !== "tool_result" && block.type !== "tool_call",
+  );
+
+  const messages: OpenAIMessage[] = [];
+  if (normalContent.length > 0 || assistantToolCalls.length > 0) {
+    messages.push({
+      role: message.role,
+      content: normalContent.length > 0 ? toOpenAIContent(normalContent) : undefined,
+      tool_calls: assistantToolCalls.length > 0 ? assistantToolCalls : undefined,
+    });
+  }
+
+  return [...messages, ...toolResultMessages];
+}
+
+function toOpenAIContent(blocks: CanonicalContentBlock[]): string | unknown[] {
+  if (blocks.every((block) => block.type === "text")) {
+    return blocks.map((block) => block.text).join("\n");
+  }
+
+  return blocks.map((block) => {
+    switch (block.type) {
+      case "text":
+        return { type: "text", text: block.text };
+      case "thinking":
+        return { type: "text", text: block.text };
+      case "image":
+        return {
+          type: "image_url",
+          image_url: {
+            url: block.source === "url" ? block.data : `data:${block.mimeType};base64,${block.data}`,
+            detail: block.detail,
+          },
+        };
+      case "audio":
+        return block.source === "url"
+          ? { type: "input_audio", audio_url: block.data }
+          : { type: "input_audio", input_audio: { data: block.data, format: block.mimeType } };
+      case "pdf":
+        return {
+          type: "file",
+          file: {
+            filename: "input.pdf",
+            file_data: `data:${block.mimeType};base64,${block.data}`,
+          },
+        };
+      case "tool_call":
+      case "tool_result":
+        return undefined;
+    }
+  }).filter(Boolean);
+}
+
+function toOpenAITool(tool: CanonicalToolSchema): OpenAITool {
+  return {
+    type: "function",
+    function: {
+      name: tool.name,
+      description: tool.description,
+      parameters: tool.inputSchema,
+    },
+  };
+}
+
+function toOpenAIToolChoice(toolChoice: CanonicalToolChoice | undefined): unknown {
+  if (!toolChoice) {
+    return undefined;
+  }
+
+  if (toolChoice === "auto" || toolChoice === "none" || toolChoice === "required") {
+    return toolChoice;
+  }
+
+  return { type: "function", function: { name: toolChoice.name } };
+}
