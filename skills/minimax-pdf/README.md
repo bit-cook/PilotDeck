@@ -1,6 +1,6 @@
 # minimax-pdf
 
-A Claude skill for creating and editing visually polished PDFs.  
+A PilotDeck skill for creating and editing visually polished PDFs.  
 Three routes. One design system. Tokens flow from content analysis through every renderer.
 
 ## Quick start
@@ -114,7 +114,7 @@ Supported input: `.md` `.txt` `.pdf` `.json`
 ## Architecture
 
 ```
-SKILL.md                      ← Claude entry point, route table
+SKILL.md                      ← Agent entry point, route table
 design/design.md              ← Aesthetic system (read before CREATE/REFORMAT)
 scripts/
   make.sh                     ← Unified CLI
@@ -191,7 +191,7 @@ Body pages always use system fonts (Times / Helvetica) via ReportLab.
 ## Architecture
 
 ```
-SKILL.md                  ← Claude entry point, routing only
+SKILL.md                  ← Agent entry point, routing only
 design/design.md          ← Aesthetic system (read before any script)
 scripts/
   make.sh                 ← Unified CLI: check / fix / run / demo

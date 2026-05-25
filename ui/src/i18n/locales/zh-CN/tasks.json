@@ -49,7 +49,7 @@
     "title": "开始使用 TaskMaster",
     "subtitle": "高效任务管理指南",
     "examples": {
-      "parsePRD": "💬 示例：\n\"我刚用 Claude Task Master 初始化了一个新项目。PRD 在 .taskmaster/docs/prd.txt，能帮我解析并设置初始任务吗？\"",
+      "parsePRD": "💬 示例：\n\"我刚用 TaskMaster 初始化了一个新项目。PRD 在 .taskmaster/docs/prd.txt，能帮我解析并设置初始任务吗？\"",
       "expandTask": "💬 示例：\n\"任务 5 看起来比较复杂，能把它拆分为子任务吗？\"",
       "addTask": "💬 示例：\n\"请添加一个新任务：使用 Cloudinary 实现用户头像上传，先调研最佳方案。\""
     },
