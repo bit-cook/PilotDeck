@@ -187,6 +187,8 @@ const router: AgentRouterRuntime = {
       yield event;
     }
   },
+  decide: realRouter.decide,
+  execute: realRouter.execute,
   observeUsage: realRouter.observeUsage,
 };
 

@@ -21,7 +21,7 @@ import {
 } from "../../../src/permission/index.js";
 import type { PermissionResult, PermissionRule } from "../../../src/permission/index.js";
 import type { AgentRuntimeConfig } from "../../../src/agent/runtime/AgentRuntimeConfig.js";
-import type { AgentRuntimeDependencies } from "../../../src/agent/runtime/AgentRuntimeDependencies.js";
+import type { AgentRuntimeDependencies, AgentRouterRuntime } from "../../../src/agent/runtime/AgentRuntimeDependencies.js";
 import type { AgentEvent } from "../../../src/agent/protocol/events.js";
 import {
   createReadFileTool,
@@ -52,8 +52,10 @@ function buildDeps(
   // Adapt the ScriptedModel into the router-shaped surface the agent loop now
   // consumes — tests don't exercise scenario routing / fallback, so the shim
   // just forwards `stream(request)` and ignores the routing context.
-  const router = {
+  const router: AgentRouterRuntime = {
     stream: (request: CanonicalModelRequest) => model.stream(request),
+    async decide() { return { provider: "test", model: "test", scenarioType: "default" as const, isSubagent: false, orchestrating: false, resolvedFrom: "fallback" as const, mutations: {} }; },
+    async *execute(_decision: any, request: CanonicalModelRequest) { yield* model.stream(request); },
   };
   return { router, tools: { scheduler, registry }, eventEmitter, ...overrides };
 }

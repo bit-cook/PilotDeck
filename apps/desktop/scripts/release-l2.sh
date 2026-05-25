@@ -51,6 +51,7 @@ fi
 cleanup_all() {
   pd_runtime_teardown_sandbox
   pd_runtime_unmount_dmg
+  [[ -n "${_PD_APP_COPY:-}" && -d "${_PD_APP_COPY:-/dev/null}" ]] && rm -rf "$(dirname "$_PD_APP_COPY")" 2>/dev/null || true
 }
 trap cleanup_all EXIT INT TERM
 
@@ -88,6 +89,17 @@ if [[ "$SKIP_ELECTRON" == "1" || "$(uname)" != "Darwin" || "${CI:-}" == "true" ]
   echo
   echo "${CYN}── L2c/L2d: Electron (skipped) ──${RST}"
 else
+  # Electron cannot launch from a read-only DMG mount (singleton lock, etc.).
+  # Copy .app to a writable temp location when it lives on a read-only volume.
+  _PD_APP_COPY=""
+  if [[ -n "${PD_MOUNT_DIR:-}" ]] && echo "$PD_APP" | grep -q '/Volumes/'; then
+    _PD_APP_COPY="$(mktemp -d -t pilotdeck-l2-app.XXXXXX)/PilotDeck.app"
+    ditto "$PD_APP" "$_PD_APP_COPY"
+    xattr -cr "$_PD_APP_COPY" 2>/dev/null || true
+    PD_APP="$_PD_APP_COPY"
+    echo "  ${DIM}Copied .app to writable location for Electron tests${RST}"
+  fi
+
   if [[ "${PD_SKIP_L2C:-0}" != "1" ]]; then
     echo
     echo "${CYN}── L2c: Electron (existing config, isolated HOME) ──${RST}"
@@ -99,6 +111,14 @@ else
       L2C_FAILED=1
     fi
   fi
+
+  # Ensure previous Electron instance has fully exited before cold-start test.
+  # Electron helpers can linger; kill all, wait, then remove any stale locks.
+  pkill -9 -f "PilotDeck.app/Contents" 2>/dev/null || true
+  sleep 5
+  rm -f "$HOME/Library/Application Support/PilotDeck/SingletonLock" \
+        "$HOME/Library/Application Support/PilotDeck/SingletonSocket" \
+        "$HOME/Library/Application Support/PilotDeck/SingletonCookie" 2>/dev/null || true
 
   echo
   echo "${CYN}── L2d: Cold-start Electron (new user, isolated HOME) ──${RST}"

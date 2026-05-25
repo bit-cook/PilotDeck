@@ -32,14 +32,27 @@ for v in ANTHROPIC_API_KEY OPENAI_API_KEY PILOTDECK_API_KEY; do
   [[ -n "${!v:-}" ]] && has_key=1 && break
 done
 
+# Fallback: extract apiKey from ~/.pilotdeck/pilotdeck.yaml when no env var is set.
+if [[ "$has_key" == "0" ]]; then
+  _yaml="${HOME}/.pilotdeck/pilotdeck.yaml"
+  if [[ -f "$_yaml" ]]; then
+    _extracted_key="$(awk '/^[[:space:]]*apiKey:/{gsub(/^[[:space:]]*apiKey:[[:space:]]*"?/,""); gsub(/"[[:space:]]*$/,""); print; exit}' "$_yaml")"
+    if [[ -n "$_extracted_key" && "$_extracted_key" != "smoke-test-not-real" ]]; then
+      export PILOTDECK_API_KEY="$_extracted_key"
+      has_key=1
+    fi
+  fi
+fi
+
 echo "${BLD}PilotDeck L3 E2E${RST}"
 
 if [[ "$has_key" == "0" ]]; then
   if [[ "$FORCE" == "1" ]]; then
     echo "${RED}No API key in env (ANTHROPIC_API_KEY / OPENAI_API_KEY / PILOTDECK_API_KEY)${RST}" >&2
+    echo "  Also checked ~/.pilotdeck/pilotdeck.yaml — no apiKey found" >&2
     exit 1
   fi
-  echo "${YEL}⚠ Skipping L3 — no API credentials in environment${RST}"
+  echo "${YEL}⚠ Skipping L3 — no API credentials in environment or ~/.pilotdeck/pilotdeck.yaml${RST}"
   echo "  Export a key and re-run, or: bash scripts/release-l3.sh --force"
   exit 0
 fi

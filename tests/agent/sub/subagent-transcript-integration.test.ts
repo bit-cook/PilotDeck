@@ -21,7 +21,7 @@ import type {
   CanonicalModelRequest,
 } from "../../../src/model/index.js";
 import type { AgentRuntimeConfig } from "../../../src/agent/runtime/AgentRuntimeConfig.js";
-import type { AgentRuntimeDependencies } from "../../../src/agent/runtime/AgentRuntimeDependencies.js";
+import type { AgentRuntimeDependencies, AgentRouterRuntime } from "../../../src/agent/runtime/AgentRuntimeDependencies.js";
 
 class ScriptedModel {
   readonly requests: CanonicalModelRequest[] = [];
@@ -44,8 +44,10 @@ function buildDeps(model: ScriptedModel, registry: ToolRegistry): AgentRuntimeDe
   const permissions = new PermissionRuntime();
   const toolRuntime = new ToolRuntime(registry, permissions);
   const scheduler = new SequentialToolScheduler(toolRuntime);
-  const router = {
+  const router: AgentRouterRuntime = {
     stream: (request: CanonicalModelRequest) => model.stream(request),
+    async decide() { return { provider: "test", model: "test", scenarioType: "default" as const, isSubagent: false, orchestrating: false, resolvedFrom: "fallback" as const, mutations: {} }; },
+    async *execute(_decision: any, request: CanonicalModelRequest) { yield* model.stream(request); },
   };
   return { router, tools: { scheduler, registry } };
 }

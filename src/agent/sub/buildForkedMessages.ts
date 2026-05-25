@@ -7,10 +7,11 @@
  * here, even when it looks harmless.
  */
 
-import type {
-  CanonicalContentBlock,
-  CanonicalMessage,
-  CanonicalToolCallBlock,
+import {
+  cloneMessage,
+  type CanonicalContentBlock,
+  type CanonicalMessage,
+  type CanonicalToolCallBlock,
 } from "../../model/index.js";
 
 /**
@@ -75,9 +76,3 @@ export function buildChildMessage(directive: string): string {
   return `<${FORK_BOILERPLATE_TAG}>\nDirective:\n${directive.trim()}\n</${FORK_BOILERPLATE_TAG}>`;
 }
 
-function cloneMessage(message: CanonicalMessage): CanonicalMessage {
-  return {
-    role: message.role,
-    content: message.content.map((block) => ({ ...block })),
-  };
-}

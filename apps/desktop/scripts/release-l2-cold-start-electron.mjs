@@ -42,10 +42,12 @@ console.log(`  (host ${realPilotHome} is not modified)`);
 
 let electronApp;
 try {
+  const cleanEnv = { ...process.env };
+  delete cleanEnv.PILOT_HOME;
   electronApp = await electron.launch({
     executablePath: execPath,
     env: {
-      ...process.env,
+      ...cleanEnv,
       HOME: sandboxHome,
       PILOTDECK_E2E_MOCK_PROVIDER: "1",
     },
